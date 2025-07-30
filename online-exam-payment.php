@@ -25,17 +25,12 @@ class OnlineExamPayment {
     public function __construct() {
         add_action('init', array($this, 'init'));
         add_action('plugins_loaded', array($this, 'load_textdomain'));
-        
-        // Activation and deactivation hooks
         register_activation_hook(__FILE__, array($this, 'activate'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
     }
     
     public function init() {
-        // Include required files
         $this->include_files();
-        
-        // Initialize components
         $this->init_components();
     }
     
@@ -64,10 +59,7 @@ class OnlineExamPayment {
     }
     
     public function activate() {
-        // Create database tables if needed
         $this->create_tables();
-        
-        // Flush rewrite rules
         flush_rewrite_rules();
     }
     
@@ -82,7 +74,6 @@ class OnlineExamPayment {
         
         // Create exam results table
         $table_name = $wpdb->prefix . 'oep_exam_results';
-        
         $sql = "CREATE TABLE $table_name (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
@@ -105,7 +96,6 @@ class OnlineExamPayment {
         
         // Create transactions table
         $table_name = $wpdb->prefix . 'oep_transactions';
-        
         $sql = "CREATE TABLE $table_name (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
@@ -119,6 +109,26 @@ class OnlineExamPayment {
             card_transfer_info longtext,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY user_id (user_id),
+            KEY exam_id (exam_id),
+            KEY status (status)
+        ) $charset_collate;";
+        
+        dbDelta($sql);
+        
+        // Create exam sessions table
+        $table_name = $wpdb->prefix . 'oep_exam_sessions';
+        $sql = "CREATE TABLE $table_name (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) NOT NULL,
+            exam_id bigint(20) NOT NULL,
+            session_data longtext,
+            current_question int(11) DEFAULT 0,
+            answers longtext,
+            started_at datetime DEFAULT CURRENT_TIMESTAMP,
+            expires_at datetime,
+            status varchar(20) DEFAULT 'active',
             PRIMARY KEY (id),
             KEY user_id (user_id),
             KEY exam_id (exam_id),

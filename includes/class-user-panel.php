@@ -15,57 +15,40 @@ class OEP_User_Panel {
     }
     
     public function get_user_exams() {
-        check_ajax_referer('oep_user_nonce', 'nonce');
+        check_ajax_referer('oep_user_panel_nonce', 'nonce');
         
         if (!is_user_logged_in()) {
-            wp_send_json_error(__('دسترسی غیرمجاز', 'online-exam-payment'));
+            wp_send_json_error(__('برای مشاهده آزمون‌ها باید وارد سایت شوید.', 'online-exam-payment'));
         }
         
         $user_id = get_current_user_id();
         $purchased_exams = get_user_meta($user_id, 'oep_purchased_exams', true) ?: array();
         
-        $exams = array();
-        
-        // Get purchased exams
-        if (!empty($purchased_exams)) {
-            $purchased_posts = get_posts(array(
-                'post_type' => 'oep_exam',
-                'post__in' => $purchased_exams,
-                'posts_per_page' => -1,
-                'post_status' => 'publish'
-            ));
-            
-            foreach ($purchased_posts as $exam) {
-                $exams[] = $this->format_exam_data($exam, $user_id);
-            }
-        }
-        
-        // Get free exams
-        $free_exams = get_posts(array(
+        // Get all published exams
+        $all_exams = get_posts(array(
             'post_type' => 'oep_exam',
-            'posts_per_page' => -1,
             'post_status' => 'publish',
-            'meta_query' => array(
-                array(
-                    'key' => '_oep_exam_price',
-                    'value' => array('0', ''),
-                    'compare' => 'IN'
-                )
-            )
+            'numberposts' => -1,
+            'orderby' => 'title',
+            'order' => 'ASC'
         ));
         
-        foreach ($free_exams as $exam) {
-            // Check if not already in purchased list
-            if (!in_array($exam->ID, $purchased_exams)) {
-                $exams[] = $this->format_exam_data($exam, $user_id);
+        $user_exams = array();
+        
+        foreach ($all_exams as $exam) {
+            $price = get_post_meta($exam->ID, '_oep_exam_price', true);
+            $has_access = $price == 0 || in_array($exam->ID, $purchased_exams);
+            
+            if ($has_access) {
+                $user_exams[] = $this->format_exam_data($exam, $user_id);
             }
         }
         
-        wp_send_json_success($exams);
+        wp_send_json_success($user_exams);
     }
     
     public function get_exam_results() {
-        check_ajax_referer('oep_user_nonce', 'nonce');
+        check_ajax_referer('oep_user_panel_nonce', 'nonce');
         
         if (!is_user_logged_in()) {
             wp_send_json_error(__('دسترسی غیرمجاز', 'online-exam-payment'));
@@ -73,6 +56,10 @@ class OEP_User_Panel {
         
         $exam_id = intval($_POST['exam_id']);
         $user_id = get_current_user_id();
+        
+        if (!$exam_id) {
+            wp_send_json_error(__('آزمون مشخص نشده است.', 'online-exam-payment'));
+        }
         
         global $wpdb;
         $table_name = $wpdb->prefix . 'oep_exam_results';
@@ -84,15 +71,17 @@ class OEP_User_Panel {
         
         $formatted_results = array();
         foreach ($results as $result) {
+            $answers = json_decode($result->answers, true) ?: array();
+            
             $formatted_results[] = array(
                 'id' => $result->id,
                 'score' => round($result->score, 1),
-                'correct_answers' => $result->correct_answers,
                 'total_questions' => $result->total_questions,
+                'correct_answers' => $result->correct_answers,
                 'time_spent' => $this->format_time($result->time_spent),
-                'passed' => $result->passed == 1,
+                'passed' => $result->passed,
                 'completed_at' => date_i18n('Y/m/d H:i', strtotime($result->completed_at)),
-                'answers' => json_decode($result->answers, true)
+                'answers' => $answers
             );
         }
         
@@ -100,52 +89,59 @@ class OEP_User_Panel {
     }
     
     private function format_exam_data($exam, $user_id) {
+        global $wpdb;
+        
+        // Get exam settings
         $price = get_post_meta($exam->ID, '_oep_exam_price', true);
         $duration = get_post_meta($exam->ID, '_oep_exam_duration', true);
+        $pass_score = get_post_meta($exam->ID, '_oep_exam_pass_score', true) ?: 60;
         $max_attempts = get_post_meta($exam->ID, '_oep_exam_max_attempts', true) ?: 1;
         
-        // Get user's attempts
-        global $wpdb;
-        $results_table = $wpdb->prefix . 'oep_exam_results';
+        // Get questions count
+        $questions_count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = '_oep_question_exam_id' AND meta_value = %d",
+            $exam->ID
+        ));
         
+        // Get user's attempts
+        $results_table = $wpdb->prefix . 'oep_exam_results';
         $attempts = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM $results_table WHERE user_id = %d AND exam_id = %d",
             $user_id, $exam->ID
         ));
         
+        // Get last result
         $last_result = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM $results_table WHERE user_id = %d AND exam_id = %d ORDER BY completed_at DESC LIMIT 1",
             $user_id, $exam->ID
         ));
         
-        // Get questions count
-        $questions_count = count(get_posts(array(
-            'post_type' => 'oep_question',
-            'meta_query' => array(
-                array(
-                    'key' => '_oep_question_exam_id',
-                    'value' => $exam->ID,
-                    'compare' => '='
-                )
-            ),
-            'posts_per_page' => -1,
-            'fields' => 'ids'
-        )));
+        // Check for active session
+        $sessions_table = $wpdb->prefix . 'oep_exam_sessions';
+        $active_session = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $sessions_table WHERE user_id = %d AND exam_id = %d AND status = 'active' AND (expires_at IS NULL OR expires_at > NOW())",
+            $user_id, $exam->ID
+        ));
         
         return array(
             'id' => $exam->ID,
             'title' => $exam->post_title,
-            'description' => wp_trim_words($exam->post_content, 20),
+            'description' => $exam->post_excerpt ?: wp_trim_words($exam->post_content, 20),
             'price' => $price,
             'duration' => $duration,
+            'pass_score' => $pass_score,
             'questions_count' => $questions_count,
             'max_attempts' => $max_attempts,
-            'user_attempts' => $attempts,
+            'attempts' => $attempts,
             'can_attempt' => $attempts < $max_attempts,
-            'last_score' => $last_result ? round($last_result->score, 1) : null,
-            'last_passed' => $last_result ? $last_result->passed == 1 : null,
-            'last_attempt_date' => $last_result ? date_i18n('Y/m/d', strtotime($last_result->completed_at)) : null,
-            'exam_url' => add_query_arg(array('oep_exam' => '1', 'exam_id' => $exam->ID), home_url())
+            'has_active_session' => !empty($active_session),
+            'session_id' => $active_session ? $active_session->id : null,
+            'last_result' => $last_result ? array(
+                'score' => round($last_result->score, 1),
+                'passed' => $last_result->passed,
+                'completed_at' => date_i18n('Y/m/d H:i', strtotime($last_result->completed_at)),
+                'time_spent' => $this->format_time($last_result->time_spent)
+            ) : null
         );
     }
     
@@ -163,215 +159,387 @@ class OEP_User_Panel {
     
     public function display_user_panel() {
         if (!is_user_logged_in()) {
-            return '<p>' . __('برای مشاهده پنل کاربری باید وارد حساب خود شوید.', 'online-exam-payment') . '</p>';
+            return '<div class="oep-login-required">' . 
+                   sprintf(__('برای مشاهده پنل کاربری باید <a href="%s">وارد سایت</a> شوید.', 'online-exam-payment'), wp_login_url()) . 
+                   '</div>';
         }
+        
+        $user = wp_get_current_user();
         
         ob_start();
         ?>
         <div class="oep-user-panel" id="oep-user-panel">
-            <div class="oep-panel-header">
-                <h2><?php _e('پنل کاربری آزمون‌ها', 'online-exam-payment'); ?></h2>
-                <div class="oep-panel-tabs">
-                    <button class="oep-tab-button active" data-tab="exams"><?php _e('آزمون‌های من', 'online-exam-payment'); ?></button>
-                    <button class="oep-tab-button" data-tab="results"><?php _e('نتایج آزمون‌ها', 'online-exam-payment'); ?></button>
+            <div class="oep-user-panel-header">
+                <h2><?php printf(__('پنل کاربری - %s', 'online-exam-payment'), $user->display_name); ?></h2>
+            </div>
+            
+            <div class="oep-user-panel-tabs">
+                <button class="oep-tab-button active" data-tab="exams">
+                    <?php _e('آزمون‌های من', 'online-exam-payment'); ?>
+                </button>
+                <button class="oep-tab-button" data-tab="results">
+                    <?php _e('نتایج آزمون‌ها', 'online-exam-payment'); ?>
+                </button>
+                <button class="oep-tab-button" data-tab="profile">
+                    <?php _e('پروفایل', 'online-exam-payment'); ?>
+                </button>
+            </div>
+            
+            <div class="oep-tab-content">
+                <div id="oep-tab-exams" class="oep-tab-panel active">
+                    <div class="oep-loading">
+                        <p><?php _e('در حال بارگذاری آزمون‌ها...', 'online-exam-payment'); ?></p>
+                    </div>
+                    <div id="oep-user-exams" style="display: none;"></div>
                 </div>
-            </div>
-            
-            <div class="oep-tab-content" id="oep-tab-exams">
-                <div class="oep-loading"><?php _e('در حال بارگذاری...', 'online-exam-payment'); ?></div>
-                <div class="oep-exams-list" style="display: none;"></div>
-            </div>
-            
-            <div class="oep-tab-content" id="oep-tab-results" style="display: none;">
-                <div class="oep-results-container">
-                    <p><?php _e('برای مشاهده نتایج، ابتدا یک آزمون را انتخاب کنید.', 'online-exam-payment'); ?></p>
+                
+                <div id="oep-tab-results" class="oep-tab-panel">
+                    <div class="oep-results-container">
+                        <p><?php _e('برای مشاهده نتایج، ابتدا یکی از آزمون‌های خود را انتخاب کنید.', 'online-exam-payment'); ?></p>
+                        <div id="oep-exam-results" style="display: none;"></div>
+                    </div>
+                </div>
+                
+                <div id="oep-tab-profile" class="oep-tab-panel">
+                    <div class="oep-profile-info">
+                        <h3><?php _e('اطلاعات حساب کاربری', 'online-exam-payment'); ?></h3>
+                        <table class="oep-profile-table">
+                            <tr>
+                                <th><?php _e('نام کاربری:', 'online-exam-payment'); ?></th>
+                                <td><?php echo esc_html($user->user_login); ?></td>
+                            </tr>
+                            <tr>
+                                <th><?php _e('نام نمایشی:', 'online-exam-payment'); ?></th>
+                                <td><?php echo esc_html($user->display_name); ?></td>
+                            </tr>
+                            <tr>
+                                <th><?php _e('ایمیل:', 'online-exam-payment'); ?></th>
+                                <td><?php echo esc_html($user->user_email); ?></td>
+                            </tr>
+                            <tr>
+                                <th><?php _e('تاریخ عضویت:', 'online-exam-payment'); ?></th>
+                                <td><?php echo date_i18n('Y/m/d', strtotime($user->user_registered)); ?></td>
+                            </tr>
+                        </table>
+                        
+                        <div class="oep-profile-actions">
+                            <a href="<?php echo admin_url('profile.php'); ?>" class="oep-btn oep-btn-primary">
+                                <?php _e('ویرایش پروفایل', 'online-exam-payment'); ?>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         
         <style>
-        .oep-user-panel {
-            max-width: 1000px;
-            margin: 20px auto;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            direction: rtl;
-        }
-        
-        .oep-panel-header {
-            padding: 20px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .oep-panel-header h2 {
-            margin: 0 0 15px 0;
-            color: #333;
-        }
-        
-        .oep-panel-tabs {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .oep-tab-button {
-            padding: 10px 20px;
-            border: 1px solid #ddd;
-            background: #f8f9fa;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .oep-tab-button:hover {
-            background: #e9ecef;
-        }
-        
-        .oep-tab-button.active {
-            background: #007cba;
-            color: white;
-            border-color: #007cba;
-        }
-        
-        .oep-tab-content {
-            padding: 20px;
-        }
-        
-        .oep-exam-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            background: #fafafa;
-            transition: box-shadow 0.3s;
-        }
-        
-        .oep-exam-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        
-        .oep-exam-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        
-        .oep-exam-meta {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 15px;
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .oep-exam-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        
-        .oep-exam-status {
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        
-        .oep-status-passed {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .oep-status-failed {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .oep-status-not-attempted {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .oep-loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        
-        .oep-results-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        
-        .oep-results-table th,
-        .oep-results-table td {
-            padding: 12px;
-            text-align: right;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        .oep-results-table th {
-            background: #f8f9fa;
-            font-weight: bold;
-        }
-        
-        .oep-modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-        
-        .oep-modal-content {
-            background-color: #fefefe;
-            margin: 5% auto;
-            padding: 20px;
-            border-radius: 8px;
-            width: 80%;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            direction: rtl;
-        }
-        
-        .oep-modal-close {
-            color: #aaa;
-            float: left;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        
-        .oep-modal-close:hover {
-            color: #000;
-        }
+            .oep-user-panel {
+                font-family: 'Tahoma', 'Arial', sans-serif;
+                direction: rtl;
+                text-align: right;
+                max-width: 1000px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                overflow: hidden;
+            }
+            
+            .oep-user-panel-header {
+                background: #2196F3;
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }
+            
+            .oep-user-panel-header h2 {
+                margin: 0;
+                font-size: 24px;
+            }
+            
+            .oep-user-panel-tabs {
+                display: flex;
+                background: #f8f9fa;
+                border-bottom: 1px solid #dee2e6;
+            }
+            
+            .oep-tab-button {
+                flex: 1;
+                padding: 15px 20px;
+                border: none;
+                background: transparent;
+                cursor: pointer;
+                font-size: 16px;
+                transition: all 0.3s;
+            }
+            
+            .oep-tab-button:hover {
+                background: #e9ecef;
+            }
+            
+            .oep-tab-button.active {
+                background: #2196F3;
+                color: white;
+            }
+            
+            .oep-tab-content {
+                padding: 30px;
+            }
+            
+            .oep-tab-panel {
+                display: none;
+            }
+            
+            .oep-tab-panel.active {
+                display: block;
+            }
+            
+            .oep-loading {
+                text-align: center;
+                padding: 50px;
+                color: #666;
+            }
+            
+            .oep-exam-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 20px;
+                margin-top: 20px;
+            }
+            
+            .oep-exam-card {
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 20px;
+                background: #f8f9fa;
+                transition: all 0.3s;
+            }
+            
+            .oep-exam-card:hover {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                transform: translateY(-2px);
+            }
+            
+            .oep-exam-title {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 10px;
+                color: #333;
+            }
+            
+            .oep-exam-description {
+                font-size: 14px;
+                color: #555;
+                margin-bottom: 10px;
+                height: 3.6em; /* Show 3 lines of text */
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .oep-exam-meta {
+                margin: 15px 0;
+                color: #666;
+                font-size: 14px;
+            }
+            
+            .oep-exam-meta span {
+                display: block;
+                margin-bottom: 5px;
+            }
+            
+            .oep-exam-actions {
+                margin-top: 15px;
+            }
+            
+            .oep-btn {
+                display: inline-block;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                text-decoration: none;
+                font-size: 14px;
+                margin-left: 10px;
+                transition: all 0.3s;
+            }
+            
+            .oep-btn-primary {
+                background: #2196F3;
+                color: white;
+            }
+            
+            .oep-btn-success {
+                background: #28a745;
+                color: white;
+            }
+            
+            .oep-btn-secondary {
+                background: #6c757d;
+                color: white;
+            }
+            
+            .oep-btn-warning {
+                background: #ffc107;
+                color: #212529;
+            }
+            
+            .oep-btn:hover {
+                opacity: 0.9;
+                transform: translateY(-1px);
+            }
+            
+            .oep-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }
+            
+            .oep-status-badge {
+                display: inline-block;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            
+            .oep-status-passed {
+                background: #d4edda;
+                color: #155724;
+            }
+            
+            .oep-status-failed {
+                background: #f8d7da;
+                color: #721c24;
+            }
+            
+            .oep-status-active {
+                background: #fff3cd;
+                color: #856404;
+            }
+            
+            .oep-results-list {
+                margin-top: 20px;
+            }
+            
+            .oep-result-item {
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                padding: 15px;
+                margin-bottom: 15px;
+                background: white;
+            }
+            
+            .oep-result-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+            }
+            
+            .oep-result-score {
+                font-size: 18px;
+                font-weight: bold;
+            }
+            
+            .oep-result-details {
+                color: #666;
+                font-size: 14px;
+            }
+            
+            .oep-detailed-answers {
+                margin-top: 15px;
+                border-top: 1px solid #dee2e6;
+                padding-top: 15px;
+            }
+            
+            .oep-answer-item {
+                margin: 10px 0;
+                padding: 10px;
+                border-radius: 4px;
+            }
+            
+            .oep-answer-correct {
+                background: #f8fff9;
+                border-right: 4px solid #28a745;
+            }
+            
+            .oep-answer-incorrect {
+                background: #fff8f8;
+                border-right: 4px solid #dc3545;
+            }
+            
+            .oep-profile-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 20px;
+            }
+            
+            .oep-profile-table th,
+            .oep-profile-table td {
+                padding: 12px;
+                text-align: right;
+                border-bottom: 1px solid #dee2e6;
+            }
+            
+            .oep-profile-table th {
+                background: #f8f9fa;
+                font-weight: bold;
+                width: 30%;
+            }
+            
+            .oep-profile-actions {
+                text-align: center;
+                margin-top: 20px;
+            }
+            
+            .oep-login-required {
+                text-align: center;
+                padding: 50px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                color: #666;
+            }
+            
+            @media (max-width: 768px) {
+                .oep-user-panel-tabs {
+                    flex-direction: column;
+                }
+                
+                .oep-exam-grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                .oep-tab-content {
+                    padding: 20px;
+                }
+                
+                .oep-result-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+            }
         </style>
         
         <script>
         jQuery(document).ready(function($) {
-            var currentTab = 'exams';
+            var userPanelNonce = '<?php echo wp_create_nonce('oep_user_panel_nonce'); ?>';
             
             // Tab switching
-            $('.oep-tab-button').click(function() {
-                var tab = $(this).data('tab');
-                $('.oep-tab-button').removeClass('active');
-                $(this).addClass('active');
-                $('.oep-tab-content').hide();
-                $('#oep-tab-' + tab).show();
-                currentTab = tab;
+            $('.oep-tab-button').on('click', function() {
+                var tabId = $(this).data('tab');
                 
-                if (tab === 'exams') {
+                $('.oep-tab-button').removeClass('active');
+                $('.oep-tab-panel').removeClass('active');
+                
+                $(this).addClass('active');
+                $('#oep-tab-' + tabId).addClass('active');
+                
+                if (tabId === 'exams') {
                     loadUserExams();
                 }
             });
             
-            // Load exams on page load
+            // Load user exams on page load
             loadUserExams();
             
             function loadUserExams() {
@@ -380,124 +548,163 @@ class OEP_User_Panel {
                     type: 'POST',
                     data: {
                         action: 'oep_get_user_exams',
-                        nonce: '<?php echo wp_create_nonce('oep_user_nonce'); ?>'
+                        nonce: userPanelNonce
                     },
                     success: function(response) {
                         if (response.success) {
-                            displayExams(response.data);
+                            displayUserExams(response.data);
                         } else {
-                            $('.oep-exams-list').html('<p>خطا در بارگذاری آزمون‌ها</p>');
+                            $('#oep-user-exams').html('<p class="error">' + response.data + '</p>');
                         }
+                        $('#oep-tab-exams .oep-loading').hide();
+                        $('#oep-user-exams').show();
                     },
                     error: function() {
-                        $('.oep-exams-list').html('<p>خطا در اتصال به سرور</p>');
+                        $('#oep-user-exams').html('<p class="error"><?php _e('خطا در بارگذاری آزمون‌ها', 'online-exam-payment'); ?></p>');
+                        $('#oep-tab-exams .oep-loading').hide();
+                        $('#oep-user-exams').show();
                     }
                 });
             }
             
-            function displayExams(exams) {
-                $('.oep-loading').hide();
-                var html = '';
-                
+            function displayUserExams(exams) {
                 if (exams.length === 0) {
-                    html = '<p>هنوز آزمونی خریداری نکرده‌اید.</p>';
-                } else {
-                    exams.forEach(function(exam) {
-                        var statusClass = 'oep-status-not-attempted';
-                        var statusText = 'شرکت نکرده';
-                        
-                        if (exam.last_passed === true) {
-                            statusClass = 'oep-status-passed';
-                            statusText = 'قبول';
-                        } else if (exam.last_passed === false) {
-                            statusClass = 'oep-status-failed';
-                            statusText = 'مردود';
-                        }
-                        
-                        html += '<div class="oep-exam-card">';
-                        html += '<div class="oep-exam-title">' + exam.title + '</div>';
-                        html += '<div class="oep-exam-meta">';
-                        html += '<span>تعداد سوالات: ' + exam.questions_count + '</span>';
-                        if (exam.duration) {
-                            html += '<span>مدت زمان: ' + exam.duration + ' دقیقه</span>';
-                        }
-                        html += '<span>تلاش‌ها: ' + exam.user_attempts + '/' + exam.max_attempts + '</span>';
-                        if (exam.last_score !== null) {
-                            html += '<span>آخرین نمره: ' + exam.last_score + '%</span>';
-                        }
-                        html += '</div>';
-                        html += '<div class="oep-exam-actions">';
-                        html += '<span class="oep-exam-status ' + statusClass + '">' + statusText + '</span>';
-                        
-                        if (exam.can_attempt) {
-                            html += '<a href="' + exam.exam_url + '" class="button button-primary">شروع آزمون</a>';
-                        } else {
-                            html += '<span class="button disabled">حداکثر تلاش</span>';
-                        }
-                        
-                        if (exam.user_attempts > 0) {
-                            html += '<button class="button oep-view-results" data-exam-id="' + exam.id + '">مشاهده نتایج</button>';
-                        }
-                        html += '</div>';
-                        html += '</div>';
-                    });
+                    $('#oep-user-exams').html('<p><?php _e('شما هنوز آزمونی نخریده‌اید.', 'online-exam-payment'); ?></p>');
+                    return;
                 }
                 
-                $('.oep-exams-list').html(html).show();
+                var html = '<div class="oep-exam-grid">';
+                
+                exams.forEach(function(exam) {
+                    html += '<div class="oep-exam-card">';
+                    html += '<div class="oep-exam-title">' + exam.title + '</div>';
+                    html += '<div class="oep-exam-description">' + exam.description + '</div>';
+                    html += '<div class="oep-exam-meta">';
+                    html += '<span><strong><?php _e('تعداد سوالات:', 'online-exam-payment'); ?></strong> ' + exam.questions_count + '</span>';
+                    if (exam.duration) {
+                        html += '<span><strong><?php _e('مدت زمان:', 'online-exam-payment'); ?></strong> ' + exam.duration + ' <?php _e('دقیقه', 'online-exam-payment'); ?></span>';
+                    }
+                    html += '<span><strong><?php _e('نمره قبولی:', 'online-exam-payment'); ?></strong> ' + exam.pass_score + '%</span>';
+                    html += '<span><strong><?php _e('تلاش‌ها:', 'online-exam-payment'); ?></strong> ' + exam.attempts + '/' + exam.max_attempts + '</span>';
+                    html += '</div>';
+                    
+                    if (exam.last_result) {
+                        html += '<div class="oep-last-result">';
+                        html += '<span class="oep-status-badge ' + (exam.last_result.passed ? 'oep-status-passed' : 'oep-status-failed') + '">';
+                        html += '<?php _e('آخرین نتیجه:', 'online-exam-payment'); ?> ' + exam.last_result.score + '% ';
+                        html += exam.last_result.passed ? '<?php _e('(قبول)', 'online-exam-payment'); ?>' : '<?php _e('(رد)', 'online-exam-payment'); ?>';
+                        html += '</span>';
+                        html += '</div>';
+                    }
+                    
+                    html += '<div class="oep-exam-actions">';
+                    
+                    if (exam.has_active_session) {
+                        html += '<a href="<?php echo home_url('/exam/'); ?>?exam_id=' + exam.id + '" class="oep-btn oep-btn-warning">';
+                        html += '<?php _e('ادامه آزمون', 'online-exam-payment'); ?></a>';
+                    } else if (exam.can_attempt) {
+                        html += '<a href="<?php echo home_url('/exam/'); ?>?exam_id=' + exam.id + '" class="oep-btn oep-btn-primary">';
+                        html += '<?php _e('شروع آزمون', 'online-exam-payment'); ?></a>';
+                    } else {
+                        html += '<button class="oep-btn oep-btn-secondary" disabled>';
+                        html += '<?php _e('تعداد تلاش تمام شد', 'online-exam-payment'); ?></button>';
+                    }
+                    
+                    if (exam.attempts > 0) {
+                        html += '<button class="oep-btn oep-btn-success oep-view-results" data-exam-id="' + exam.id + '">';
+                        html += '<?php _e('مشاهده نتایج', 'online-exam-payment'); ?></button>';
+                    }
+                    
+                    html += '</div>';
+                    html += '</div>';
+                });
+                
+                html += '</div>';
+                $('#oep-user-exams').html(html);
             }
             
-            // View results
+            // View exam results
             $(document).on('click', '.oep-view-results', function() {
                 var examId = $(this).data('exam-id');
                 loadExamResults(examId);
+                
+                $('.oep-tab-button').removeClass('active');
+                $('.oep-tab-panel').removeClass('active');
+                $('[data-tab="results"]').addClass('active');
+                $('#oep-tab-results').addClass('active');
             });
             
             function loadExamResults(examId) {
+                $('#oep-exam-results').html('<div class="oep-loading"><p><?php _e('در حال بارگذاری نتایج...', 'online-exam-payment'); ?></p></div>').show();
+                
                 $.ajax({
                     url: '<?php echo admin_url('admin-ajax.php'); ?>',
                     type: 'POST',
                     data: {
                         action: 'oep_get_exam_results',
                         exam_id: examId,
-                        nonce: '<?php echo wp_create_nonce('oep_user_nonce'); ?>'
+                        nonce: userPanelNonce
                     },
                     success: function(response) {
                         if (response.success) {
-                            displayResults(response.data);
-                            // Switch to results tab
-                            $('.oep-tab-button[data-tab="results"]').click();
+                            displayExamResults(response.data);
+                        } else {
+                            $('#oep-exam-results').html('<p class="error">' + response.data + '</p>');
                         }
+                    },
+                    error: function() {
+                        $('#oep-exam-results').html('<p class="error"><?php _e('خطا در بارگذاری نتایج', 'online-exam-payment'); ?></p>');
                     }
                 });
             }
             
-            function displayResults(results) {
-                var html = '<h3>نتایج آزمون‌ها</h3>';
-                
+            function displayExamResults(results) {
                 if (results.length === 0) {
-                    html += '<p>هنوز نتیجه‌ای ثبت نشده است.</p>';
-                } else {
-                    html += '<table class="oep-results-table">';
-                    html += '<thead><tr><th>تاریخ</th><th>نمره</th><th>درصد</th><th>زمان صرف شده</th><th>وضعیت</th></tr></thead>';
-                    html += '<tbody>';
-                    
-                    results.forEach(function(result) {
-                        var statusClass = result.passed ? 'oep-status-passed' : 'oep-status-failed';
-                        var statusText = result.passed ? 'قبول' : 'مردود';
-                        
-                        html += '<tr>';
-                        html += '<td>' + result.completed_at + '</td>';
-                        html += '<td>' + result.correct_answers + '/' + result.total_questions + '</td>';
-                        html += '<td>' + result.score + '%</td>';
-                        html += '<td>' + result.time_spent + '</td>';
-                        html += '<td><span class="oep-exam-status ' + statusClass + '">' + statusText + '</span></td>';
-                        html += '</tr>';
-                    });
-                    
-                    html += '</tbody></table>';
+                    $('#oep-exam-results').html('<p><?php _e('نتیجه‌ای یافت نشد.', 'online-exam-payment'); ?></p>');
+                    return;
                 }
                 
-                $('.oep-results-container').html(html);
+                var html = '<div class="oep-results-list">';
+                
+                results.forEach(function(result, index) {
+                    html += '<div class="oep-result-item">';
+                    html += '<div class="oep-result-header">';
+                    html += '<div>';
+                    html += '<span class="oep-result-score ' + (result.passed ? 'oep-status-passed' : 'oep-status-failed') + '">';
+                    html += result.score + '%</span>';
+                    html += '<span class="oep-status-badge ' + (result.passed ? 'oep-status-passed' : 'oep-status-failed') + '">';
+                    html += result.passed ? '<?php _e('قبول', 'online-exam-payment'); ?>' : '<?php _e('رد', 'online-exam-payment'); ?>';
+                    html += '</span>';
+                    html += '</div>';
+                    html += '<div class="oep-result-details">';
+                    html += '<span><?php _e('تاریخ:', 'online-exam-payment'); ?> ' + result.completed_at + '</span><br>';
+                    html += '<span><?php _e('زمان صرف شده:', 'online-exam-payment'); ?> ' + result.time_spent + '</span>';
+                    html += '</div>';
+                    html += '</div>';
+                    
+                    if (result.answers && result.answers.length > 0) {
+                        html += '<div class="oep-detailed-answers">';
+                        html += '<h4><?php _e('جزئیات پاسخ‌ها:', 'online-exam-payment'); ?></h4>';
+                        
+                        result.answers.forEach(function(answer, qIndex) {
+                            html += '<div class="oep-answer-item ' + (answer.is_correct ? 'oep-answer-correct' : 'oep-answer-incorrect') + '">';
+                            html += '<strong>سوال ' + (qIndex + 1) + ':</strong> ' + answer.question_title + '<br>';
+                            html += '<strong><?php _e('پاسخ شما:', 'online-exam-payment'); ?></strong> ' + (answer.user_answer || '<?php _e('پاسخ داده نشده', 'online-exam-payment'); ?>') + '<br>';
+                            html += '<strong><?php _e('پاسخ صحیح:', 'online-exam-payment'); ?></strong> ' + answer.correct_answer;
+                            if (answer.explanation) {
+                                html += '<br><strong><?php _e('توضیح:', 'online-exam-payment'); ?></strong> ' + answer.explanation;
+                            }
+                            html += '</div>';
+                        });
+                        
+                        html += '</div>';
+                    }
+                    
+                    html += '</div>';
+                });
+                
+                html += '</div>';
+                $('#oep-exam-results').html(html);
             }
         });
         </script>

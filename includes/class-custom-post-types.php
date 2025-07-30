@@ -22,15 +22,15 @@ class OEP_Custom_Post_Types {
         $exam_labels = array(
             'name' => __('آزمون‌ها', 'online-exam-payment'),
             'singular_name' => __('آزمون', 'online-exam-payment'),
+            'menu_name' => __('آزمون‌ها', 'online-exam-payment'),
             'add_new' => __('افزودن آزمون جدید', 'online-exam-payment'),
             'add_new_item' => __('افزودن آزمون جدید', 'online-exam-payment'),
             'edit_item' => __('ویرایش آزمون', 'online-exam-payment'),
             'new_item' => __('آزمون جدید', 'online-exam-payment'),
             'view_item' => __('مشاهده آزمون', 'online-exam-payment'),
-            'search_items' => __('جستجو در آزمون‌ها', 'online-exam-payment'),
+            'search_items' => __('جستجوی آزمون', 'online-exam-payment'),
             'not_found' => __('آزمونی یافت نشد', 'online-exam-payment'),
-            'not_found_in_trash' => __('آزمونی در زباله‌دان یافت نشد', 'online-exam-payment'),
-            'menu_name' => __('آزمون‌ها', 'online-exam-payment')
+            'not_found_in_trash' => __('آزمونی در سطل زباله یافت نشد', 'online-exam-payment'),
         );
         
         $exam_args = array(
@@ -38,7 +38,7 @@ class OEP_Custom_Post_Types {
             'public' => true,
             'publicly_queryable' => true,
             'show_ui' => true,
-            'show_in_menu' => false, // We'll add it to our custom admin menu
+            'show_in_menu' => false, // We'll add it to our custom menu
             'query_var' => true,
             'rewrite' => array('slug' => 'exam'),
             'capability_type' => 'post',
@@ -46,7 +46,7 @@ class OEP_Custom_Post_Types {
             'hierarchical' => false,
             'menu_position' => null,
             'supports' => array('title', 'editor', 'thumbnail'),
-            'menu_icon' => 'dashicons-clipboard'
+            'menu_icon' => 'dashicons-clipboard',
         );
         
         register_post_type('oep_exam', $exam_args);
@@ -55,15 +55,15 @@ class OEP_Custom_Post_Types {
         $question_labels = array(
             'name' => __('سوالات', 'online-exam-payment'),
             'singular_name' => __('سوال', 'online-exam-payment'),
+            'menu_name' => __('سوالات', 'online-exam-payment'),
             'add_new' => __('افزودن سوال جدید', 'online-exam-payment'),
             'add_new_item' => __('افزودن سوال جدید', 'online-exam-payment'),
             'edit_item' => __('ویرایش سوال', 'online-exam-payment'),
             'new_item' => __('سوال جدید', 'online-exam-payment'),
             'view_item' => __('مشاهده سوال', 'online-exam-payment'),
-            'search_items' => __('جستجو در سوالات', 'online-exam-payment'),
+            'search_items' => __('جستجوی سوال', 'online-exam-payment'),
             'not_found' => __('سوالی یافت نشد', 'online-exam-payment'),
-            'not_found_in_trash' => __('سوالی در زباله‌دان یافت نشد', 'online-exam-payment'),
-            'menu_name' => __('سوالات', 'online-exam-payment')
+            'not_found_in_trash' => __('سوالی در سطل زباله یافت نشد', 'online-exam-payment'),
         );
         
         $question_args = array(
@@ -71,7 +71,7 @@ class OEP_Custom_Post_Types {
             'public' => false,
             'publicly_queryable' => false,
             'show_ui' => true,
-            'show_in_menu' => false, // We'll add it to our custom admin menu
+            'show_in_menu' => false, // We'll add it to our custom menu
             'query_var' => true,
             'rewrite' => false,
             'capability_type' => 'post',
@@ -79,7 +79,6 @@ class OEP_Custom_Post_Types {
             'hierarchical' => false,
             'menu_position' => null,
             'supports' => array('title', 'editor'),
-            'menu_icon' => 'dashicons-editor-help'
         );
         
         register_post_type('oep_question', $question_args);
@@ -90,7 +89,7 @@ class OEP_Custom_Post_Types {
         $category_labels = array(
             'name' => __('دسته‌بندی آزمون‌ها', 'online-exam-payment'),
             'singular_name' => __('دسته‌بندی', 'online-exam-payment'),
-            'search_items' => __('جستجو در دسته‌بندی‌ها', 'online-exam-payment'),
+            'search_items' => __('جستجوی دسته‌بندی', 'online-exam-payment'),
             'all_items' => __('همه دسته‌بندی‌ها', 'online-exam-payment'),
             'parent_item' => __('دسته‌بندی والد', 'online-exam-payment'),
             'parent_item_colon' => __('دسته‌بندی والد:', 'online-exam-payment'),
@@ -114,7 +113,6 @@ class OEP_Custom_Post_Types {
     }
     
     public function add_meta_boxes() {
-        // Exam meta boxes
         add_meta_box(
             'oep_exam_settings',
             __('تنظیمات آزمون', 'online-exam-payment'),
@@ -124,7 +122,6 @@ class OEP_Custom_Post_Types {
             'high'
         );
         
-        // Question meta boxes
         add_meta_box(
             'oep_question_options',
             __('گزینه‌های سوال', 'online-exam-payment'),
@@ -145,7 +142,7 @@ class OEP_Custom_Post_Types {
     }
     
     public function exam_settings_meta_box($post) {
-        wp_nonce_field('oep_exam_meta_nonce', 'oep_exam_meta_nonce');
+        wp_nonce_field('oep_exam_meta_box', 'oep_exam_meta_box_nonce');
         
         $price = get_post_meta($post->ID, '_oep_exam_price', true);
         $duration = get_post_meta($post->ID, '_oep_exam_duration', true);
@@ -158,29 +155,29 @@ class OEP_Custom_Post_Types {
         <table class="form-table">
             <tr>
                 <th scope="row">
-                    <label for="oep_exam_price"><?php _e('قیمت آزمون (تومان)', 'online-exam-payment'); ?></label>
+                    <label for="oep_exam_price"><?php _e('قیمت (تومان)', 'online-exam-payment'); ?></label>
                 </th>
                 <td>
                     <input type="number" id="oep_exam_price" name="oep_exam_price" value="<?php echo esc_attr($price); ?>" min="0" step="1000" />
-                    <p class="description"><?php _e('قیمت آزمون به تومان. برای آزمون رایگان، عدد 0 وارد کنید.', 'online-exam-payment'); ?></p>
+                    <p class="description"><?php _e('قیمت آزمون به تومان. برای آزمون رایگان عدد 0 وارد کنید.', 'online-exam-payment'); ?></p>
                 </td>
             </tr>
             <tr>
                 <th scope="row">
-                    <label for="oep_exam_duration"><?php _e('مدت زمان آزمون (دقیقه)', 'online-exam-payment'); ?></label>
+                    <label for="oep_exam_duration"><?php _e('مدت زمان (دقیقه)', 'online-exam-payment'); ?></label>
                 </th>
                 <td>
                     <input type="number" id="oep_exam_duration" name="oep_exam_duration" value="<?php echo esc_attr($duration); ?>" min="0" />
-                    <p class="description"><?php _e('مدت زمان آزمون به دقیقه. برای آزمون بدون محدودیت زمان، عدد 0 وارد کنید.', 'online-exam-payment'); ?></p>
+                    <p class="description"><?php _e('مدت زمان آزمون به دقیقه. برای بدون محدودیت زمان عدد 0 وارد کنید.', 'online-exam-payment'); ?></p>
                 </td>
             </tr>
             <tr>
                 <th scope="row">
-                    <label for="oep_exam_pass_score"><?php _e('حدنصاب قبولی (درصد)', 'online-exam-payment'); ?></label>
+                    <label for="oep_exam_pass_score"><?php _e('نمره قبولی (درصد)', 'online-exam-payment'); ?></label>
                 </th>
                 <td>
-                    <input type="number" id="oep_exam_pass_score" name="oep_exam_pass_score" value="<?php echo esc_attr($pass_score ?: 60); ?>" min="0" max="100" />
-                    <p class="description"><?php _e('حدنصاب قبولی به درصد (پیش‌فرض: 60)', 'online-exam-payment'); ?></p>
+                    <input type="number" id="oep_exam_pass_score" name="oep_exam_pass_score" value="<?php echo esc_attr($pass_score ? $pass_score : 60); ?>" min="0" max="100" />
+                    <p class="description"><?php _e('حداقل درصد نمره برای قبولی در آزمون.', 'online-exam-payment'); ?></p>
                 </td>
             </tr>
             <tr>
@@ -188,8 +185,8 @@ class OEP_Custom_Post_Types {
                     <label for="oep_exam_max_attempts"><?php _e('حداکثر تعداد تلاش', 'online-exam-payment'); ?></label>
                 </th>
                 <td>
-                    <input type="number" id="oep_exam_max_attempts" name="oep_exam_max_attempts" value="<?php echo esc_attr($max_attempts ?: 1); ?>" min="1" />
-                    <p class="description"><?php _e('حداکثر تعداد دفعاتی که کاربر می‌تواند در آزمون شرکت کند', 'online-exam-payment'); ?></p>
+                    <input type="number" id="oep_exam_max_attempts" name="oep_exam_max_attempts" value="<?php echo esc_attr($max_attempts ? $max_attempts : 1); ?>" min="1" />
+                    <p class="description"><?php _e('حداکثر تعداد دفعاتی که کاربر می‌تواند در آزمون شرکت کند.', 'online-exam-payment'); ?></p>
                 </td>
             </tr>
             <tr>
@@ -197,7 +194,7 @@ class OEP_Custom_Post_Types {
                 <td>
                     <label>
                         <input type="checkbox" name="oep_exam_show_results" value="1" <?php checked($show_results, 1); ?> />
-                        <?php _e('پس از پایان آزمون، پاسخ‌های صحیح به کاربر نمایش داده شود', 'online-exam-payment'); ?>
+                        <?php _e('نمایش پاسخ‌های صحیح پس از اتمام آزمون', 'online-exam-payment'); ?>
                     </label>
                 </td>
             </tr>
@@ -206,7 +203,7 @@ class OEP_Custom_Post_Types {
                 <td>
                     <label>
                         <input type="checkbox" name="oep_exam_shuffle_questions" value="1" <?php checked($shuffle_questions, 1); ?> />
-                        <?php _e('سوالات به صورت تصادفی مرتب شوند', 'online-exam-payment'); ?>
+                        <?php _e('نمایش تصادفی سوالات', 'online-exam-payment'); ?>
                     </label>
                 </td>
             </tr>
@@ -215,7 +212,7 @@ class OEP_Custom_Post_Types {
     }
     
     public function question_options_meta_box($post) {
-        wp_nonce_field('oep_question_meta_nonce', 'oep_question_meta_nonce');
+        wp_nonce_field('oep_question_meta_box', 'oep_question_meta_box_nonce');
         
         $option_a = get_post_meta($post->ID, '_oep_question_option_a', true);
         $option_b = get_post_meta($post->ID, '_oep_question_option_b', true);
@@ -274,11 +271,11 @@ class OEP_Custom_Post_Types {
             </tr>
             <tr>
                 <th scope="row">
-                    <label for="oep_question_explanation"><?php _e('توضیح (اختیاری)', 'online-exam-payment'); ?></label>
+                    <label for="oep_question_explanation"><?php _e('توضیح پاسخ', 'online-exam-payment'); ?></label>
                 </th>
                 <td>
                     <textarea id="oep_question_explanation" name="oep_question_explanation" rows="3" class="large-text"><?php echo esc_textarea($explanation); ?></textarea>
-                    <p class="description"><?php _e('توضیح اضافی که پس از پایان آزمون به کاربر نمایش داده می‌شود', 'online-exam-payment'); ?></p>
+                    <p class="description"><?php _e('توضیح اختیاری برای پاسخ صحیح که پس از آزمون نمایش داده می‌شود.', 'online-exam-payment'); ?></p>
                 </td>
             </tr>
         </table>
@@ -287,9 +284,10 @@ class OEP_Custom_Post_Types {
     
     public function question_exam_meta_box($post) {
         $exam_id = get_post_meta($post->ID, '_oep_question_exam_id', true);
+        
         $exams = get_posts(array(
             'post_type' => 'oep_exam',
-            'posts_per_page' => -1,
+            'numberposts' => -1,
             'post_status' => 'any'
         ));
         
@@ -307,7 +305,7 @@ class OEP_Custom_Post_Types {
     }
     
     public function save_exam_meta($post_id) {
-        if (!isset($_POST['oep_exam_meta_nonce']) || !wp_verify_nonce($_POST['oep_exam_meta_nonce'], 'oep_exam_meta_nonce')) {
+        if (!isset($_POST['oep_exam_meta_box_nonce']) || !wp_verify_nonce($_POST['oep_exam_meta_box_nonce'], 'oep_exam_meta_box')) {
             return;
         }
         
@@ -324,25 +322,23 @@ class OEP_Custom_Post_Types {
         }
         
         $fields = array(
-            'oep_exam_price',
-            'oep_exam_duration',
-            'oep_exam_pass_score',
-            'oep_exam_max_attempts'
+            'oep_exam_price' => 'intval',
+            'oep_exam_duration' => 'intval',
+            'oep_exam_pass_score' => 'intval',
+            'oep_exam_max_attempts' => 'intval',
+            'oep_exam_show_results' => 'intval',
+            'oep_exam_shuffle_questions' => 'intval'
         );
         
-        foreach ($fields as $field) {
+        foreach ($fields as $field => $sanitize_func) {
             if (isset($_POST[$field])) {
-                update_post_meta($post_id, '_' . $field, sanitize_text_field($_POST[$field]));
+                update_post_meta($post_id, '_' . $field, $sanitize_func($_POST[$field]));
             }
         }
-        
-        // Handle checkboxes
-        update_post_meta($post_id, '_oep_exam_show_results', isset($_POST['oep_exam_show_results']) ? 1 : 0);
-        update_post_meta($post_id, '_oep_exam_shuffle_questions', isset($_POST['oep_exam_shuffle_questions']) ? 1 : 0);
     }
     
     public function save_question_meta($post_id) {
-        if (!isset($_POST['oep_question_meta_nonce']) || !wp_verify_nonce($_POST['oep_question_meta_nonce'], 'oep_question_meta_nonce')) {
+        if (!isset($_POST['oep_question_meta_box_nonce']) || !wp_verify_nonce($_POST['oep_question_meta_box_nonce'], 'oep_question_meta_box')) {
             return;
         }
         
