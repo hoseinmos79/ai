@@ -1,0 +1,797 @@
+/* Shortcodes CSS for Online Exam Payment Plugin */
+
+.oep-exam-list,
+.oep-exam-single,
+.oep-user-panel,
+.oep-payment-form {
+    direction: rtl;
+    text-align: right;
+    font-family: 'Tahoma', 'Arial', sans-serif;
+}
+
+/* Exam List Shortcode */
+.oep-exam-list {
+    margin: 20px 0;
+}
+
+.oep-exam-grid {
+    display: grid;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.oep-exam-list[data-columns="1"] .oep-exam-grid {
+    grid-template-columns: 1fr;
+}
+
+.oep-exam-list[data-columns="2"] .oep-exam-grid {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+}
+
+.oep-exam-list[data-columns="3"] .oep-exam-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.oep-exam-list[data-columns="4"] .oep-exam-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.oep-exam-card {
+    background: #fff;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.oep-exam-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.oep-exam-thumbnail {
+    position: relative;
+    overflow: hidden;
+}
+
+.oep-exam-thumbnail img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.oep-exam-card:hover .oep-exam-thumbnail img {
+    transform: scale(1.05);
+}
+
+.oep-exam-content {
+    padding: 20px;
+}
+
+.oep-exam-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0 0 10px 0;
+    color: #333;
+    line-height: 1.4;
+}
+
+.oep-exam-categories {
+    margin-bottom: 10px;
+}
+
+.oep-category-badge {
+    display: inline-block;
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin-left: 5px;
+    margin-bottom: 5px;
+}
+
+.oep-exam-description {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 15px;
+    height: 3.6em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.oep-exam-meta {
+    margin: 15px 0;
+    padding: 10px 0;
+    border-top: 1px solid #f0f0f0;
+}
+
+.oep-meta-item {
+    display: inline-block;
+    margin-left: 15px;
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #666;
+}
+
+.oep-meta-item:before {
+    content: '•';
+    margin-left: 5px;
+    color: #2196F3;
+}
+
+.oep-meta-item:first-child:before {
+    display: none;
+}
+
+.oep-meta-item.oep-price {
+    color: #2196F3;
+    font-weight: bold;
+}
+
+.oep-exam-actions {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
+/* Buttons */
+.oep-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    line-height: 1.4;
+}
+
+.oep-btn-primary {
+    background: #2196F3;
+    color: #fff;
+    border-color: #2196F3;
+}
+
+.oep-btn-primary:hover {
+    background: #1976D2;
+    border-color: #1976D2;
+    color: #fff;
+    text-decoration: none;
+}
+
+.oep-btn-success {
+    background: #4CAF50;
+    color: #fff;
+    border-color: #4CAF50;
+}
+
+.oep-btn-success:hover {
+    background: #45a049;
+    border-color: #45a049;
+    color: #fff;
+    text-decoration: none;
+}
+
+.oep-btn-outline {
+    background: transparent;
+    color: #2196F3;
+    border-color: #2196F3;
+}
+
+.oep-btn-outline:hover {
+    background: #2196F3;
+    color: #fff;
+    text-decoration: none;
+}
+
+.oep-btn-block {
+    width: 100%;
+    display: block;
+}
+
+.oep-btn-large {
+    padding: 12px 24px;
+    font-size: 16px;
+}
+
+.oep-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Single Exam Shortcode */
+.oep-exam-single {
+    max-width: 1000px;
+    margin: 20px auto;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.oep-exam-header {
+    display: flex;
+    gap: 30px;
+    padding: 30px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.oep-exam-featured-image {
+    flex: 0 0 300px;
+}
+
+.oep-exam-featured-image img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.oep-exam-info {
+    flex: 1;
+}
+
+.oep-exam-single .oep-exam-title {
+    font-size: 28px;
+    margin: 0 0 15px 0;
+    color: #333;
+}
+
+.oep-exam-price {
+    margin-top: 15px;
+}
+
+.oep-price-amount {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2196F3;
+}
+
+.oep-price-currency {
+    font-size: 16px;
+    color: #666;
+    margin-right: 5px;
+}
+
+.oep-price-free {
+    font-size: 20px;
+    font-weight: bold;
+    color: #4CAF50;
+}
+
+.oep-exam-body {
+    display: flex;
+    gap: 30px;
+    padding: 30px;
+}
+
+.oep-exam-content {
+    flex: 2;
+}
+
+.oep-exam-description {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #555;
+    margin-bottom: 30px;
+}
+
+.oep-exam-specifications h3 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 20px;
+}
+
+.oep-specs-list {
+    list-style: none;
+    padding: 0;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.oep-specs-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.oep-specs-list li:last-child {
+    border-bottom: none;
+}
+
+.oep-exam-sidebar {
+    flex: 1;
+}
+
+.oep-purchase-box {
+    background: #fff;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    position: sticky;
+    top: 20px;
+}
+
+.oep-access-granted {
+    text-align: center;
+}
+
+.oep-success-message {
+    color: #4CAF50;
+    font-weight: 500;
+    margin-bottom: 15px;
+}
+
+.oep-purchase-info {
+    text-align: center;
+}
+
+.oep-price-display {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+/* Payment Form */
+.oep-payment-form {
+    max-width: 500px;
+    margin: 20px auto;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.oep-payment-header {
+    background: #2196F3;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+}
+
+.oep-payment-header h3 {
+    margin: 0 0 10px 0;
+    font-size: 20px;
+}
+
+.oep-payment-header h4 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    opacity: 0.9;
+}
+
+.oep-payment-methods {
+    padding: 30px;
+}
+
+.oep-payment-methods h4 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 16px;
+}
+
+.oep-payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.oep-payment-option {
+    display: block;
+    cursor: pointer;
+}
+
+.oep-payment-option input[type="radio"] {
+    display: none;
+}
+
+.oep-option-content {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.oep-payment-option input[type="radio"]:checked + .oep-option-content {
+    border-color: #2196F3;
+    background: #f0f8ff;
+}
+
+.oep-option-icon {
+    font-size: 24px;
+    margin-left: 15px;
+}
+
+.oep-option-info strong {
+    display: block;
+    color: #333;
+    margin-bottom: 3px;
+}
+
+.oep-option-info span {
+    color: #666;
+    font-size: 14px;
+}
+
+.oep-payment-actions {
+    padding: 0 30px 30px;
+}
+
+/* Modal */
+.oep-modal {
+    display: none;
+    position: fixed;
+    z-index: 100000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.oep-modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    direction: rtl;
+    text-align: right;
+    position: relative;
+}
+
+.oep-modal-close {
+    color: #aaa;
+    position: absolute;
+    top: 15px;
+    left: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+    z-index: 1;
+}
+
+.oep-modal-close:hover,
+.oep-modal-close:focus {
+    color: #000;
+    text-decoration: none;
+}
+
+/* Card Transfer Form */
+.oep-card-transfer-form {
+    padding: 30px;
+}
+
+.oep-card-transfer-form h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+}
+
+.oep-card-info {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.oep-card-info h4 {
+    margin: 0 0 15px 0;
+    color: #495057;
+}
+
+.oep-info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.oep-info-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.oep-info-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.oep-info-value {
+    color: #6c757d;
+}
+
+.oep-transfer-form {
+    margin-top: 20px;
+}
+
+.oep-form-group {
+    margin-bottom: 20px;
+}
+
+.oep-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #333;
+}
+
+.oep-form-group input,
+.oep-form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    direction: rtl;
+    text-align: right;
+}
+
+.oep-form-group input:focus,
+.oep-form-group textarea:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.oep-form-group .required {
+    color: #dc3545;
+}
+
+/* Messages */
+.oep-message {
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 6px;
+    border-left: 4px solid;
+}
+
+.oep-message.success {
+    background: #d4edda;
+    color: #155724;
+    border-left-color: #28a745;
+}
+
+.oep-message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border-left-color: #dc3545;
+}
+
+.oep-message.warning {
+    background: #fff3cd;
+    color: #856404;
+    border-left-color: #ffc107;
+}
+
+.oep-message.info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border-left-color: #17a2b8;
+}
+
+/* No Exams */
+.oep-no-exams {
+    text-align: center;
+    padding: 50px 20px;
+    color: #666;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* Error Messages */
+.oep-error {
+    text-align: center;
+    padding: 30px;
+    color: #721c24;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+}
+
+/* Login Required */
+.oep-login-required {
+    text-align: center;
+    padding: 30px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    color: #495057;
+}
+
+.oep-login-required a {
+    color: #2196F3;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.oep-login-required a:hover {
+    text-decoration: underline;
+}
+
+/* Loading States */
+.oep-loading {
+    opacity: 0.6;
+    pointer-events: none;
+    position: relative;
+}
+
+.oep-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #2196F3;
+    border-radius: 50%;
+    animation: oep-spin 1s linear infinite;
+}
+
+@keyframes oep-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Floating Messages */
+.oep-floating-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100001;
+    min-width: 300px;
+    padding: 15px 20px;
+    border-radius: 6px;
+    color: #fff;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    animation: oep-slide-in 0.3s ease-out;
+}
+
+.oep-floating-message.success {
+    background: #28a745;
+}
+
+.oep-floating-message.error {
+    background: #dc3545;
+}
+
+.oep-floating-message.warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.oep-floating-message.info {
+    background: #17a2b8;
+}
+
+@keyframes oep-slide-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .oep-exam-grid {
+        grid-template-columns: 1fr !important;
+        gap: 15px;
+    }
+    
+    .oep-exam-card {
+        margin-bottom: 0;
+    }
+    
+    .oep-exam-content {
+        padding: 15px;
+    }
+    
+    .oep-exam-actions {
+        gap: 8px;
+    }
+    
+    .oep-exam-header {
+        flex-direction: column;
+        gap: 20px;
+        padding: 20px;
+    }
+    
+    .oep-exam-featured-image {
+        flex: none;
+    }
+    
+    .oep-exam-body {
+        flex-direction: column;
+        gap: 20px;
+        padding: 20px;
+    }
+    
+    .oep-exam-single .oep-exam-title {
+        font-size: 24px;
+    }
+    
+    .oep-modal-content {
+        width: 95%;
+        margin: 2% auto;
+    }
+    
+    .oep-payment-form {
+        margin: 10px;
+    }
+    
+    .oep-payment-methods,
+    .oep-card-transfer-form {
+        padding: 20px;
+    }
+    
+    .oep-payment-options {
+        gap: 10px;
+    }
+    
+    .oep-option-content {
+        padding: 12px;
+    }
+    
+    .oep-floating-message {
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .oep-exam-content {
+        padding: 12px;
+    }
+    
+    .oep-exam-title {
+        font-size: 16px;
+    }
+    
+    .oep-exam-single .oep-exam-title {
+        font-size: 20px;
+    }
+    
+    .oep-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+    
+    .oep-btn-large {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+    
+    .oep-payment-header,
+    .oep-payment-methods,
+    .oep-card-transfer-form {
+        padding: 15px;
+    }
+}
